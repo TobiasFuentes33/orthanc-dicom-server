@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   orthanc:
     image: orthancteam/orthanc:latest
@@ -10,6 +12,9 @@ services:
       VERBOSE_STARTUP: "true"
       ORTHANC__NAME: "orthanc-local"
       ORTHANC__AUTHENTICATION_ENABLED: "false"
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      OHIF_PLUGIN_ENABLED: "true"
+      STONE_WEB_VIEWER_PLUGIN_ENABLED: "true"
     volumes:
       - orthanc-storage:/var/lib/orthanc/db
 
