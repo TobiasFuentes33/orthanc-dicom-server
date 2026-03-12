@@ -1,0 +1,5 @@
+runtime/
+node_modules/
+ohif-dist/
+ohif/
+orthanc-setup-samples/
