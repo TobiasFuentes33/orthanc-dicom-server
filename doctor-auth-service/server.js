@@ -5,7 +5,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 
 const PORT = Number(process.env.PORT || 3000);
-const OHIF_TARGET = process.env.OHIF_TARGET || 'http://host.docker.internal:3001';
+const OHIF_TARGET = process.env.OHIF_TARGET || 'http://orthanc:8042/ohif';
 const DOCTOR_USER = process.env.DOCTOR_USER || 'doctor';
 const DOCTOR_PASS = process.env.DOCTOR_PASS || 'doctor123';
 
@@ -104,7 +104,7 @@ app.use(
     changeOrigin: true,
     ws: true,
     pathRewrite: {
-      '^/ohif': '/',
+      '^/ohif': '',
     },
     onError: (_, res) => {
       res.status(502).send(
