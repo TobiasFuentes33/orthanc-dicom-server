@@ -1,6 +1,7 @@
 const express = require('express');
+const path = require('path');
 const session = require('express-session');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware');
 
 const app = express();
 
@@ -9,6 +10,101 @@ const OHIF_TARGET = process.env.OHIF_TARGET || 'http://orthanc:8042/ohif';
 const ORTHANC_TARGET = process.env.ORTHANC_TARGET || 'http://orthanc:8042';
 const DOCTOR_USER = process.env.DOCTOR_USER || 'doctor';
 const DOCTOR_PASS = process.env.DOCTOR_PASS || 'doctor123';
+const CUSTOM_LOGO_URL = process.env.CUSTOM_LOGO_URL || '/branding/custom-logo.svg';
+
+function injectViewerBranding(html) {
+  const clientScript = `
+<script>
+(() => {
+  const customLogoUrl = ${JSON.stringify(CUSTOM_LOGO_URL)};
+
+  const forceSpanish = () => {
+    try {
+      localStorage.setItem('i18nextLng', 'es');
+      document.documentElement.setAttribute('lang', 'es');
+      sessionStorage.setItem('investigationalUseDialog', 'hidden');
+      localStorage.setItem('investigationalUseDialog', JSON.stringify({ expiryDate: '2999-12-31T00:00:00.000Z' }));
+    } catch (error) {
+      console.warn('No fue posible forzar preferencias de idioma.', error);
+    }
+  };
+
+  const removeInvestigationalDialog = () => {
+    document.querySelectorAll('button').forEach(button => {
+      const label = (button.textContent || '').trim().toLowerCase();
+      if (!label.includes('confirm and hide')) {
+        return;
+      }
+
+      const overlay = button.closest('.fixed.bottom-2') || button.closest('[role="dialog"]');
+      if (overlay) {
+        overlay.remove();
+      }
+    });
+  };
+
+  const removeLanguagePreference = () => {
+    const languageLabels = ['language', 'idioma'];
+    document.querySelectorAll('label, span, div').forEach(node => {
+      const text = (node.textContent || '').trim().toLowerCase();
+      if (!languageLabels.some(label => text === label || text.startsWith(label + ':'))) {
+        return;
+      }
+
+      const block = node.closest('.flex, .grid, [role="group"], form > div');
+      if (block) {
+        block.remove();
+      }
+    });
+  };
+
+  const replaceLogos = () => {
+    document.querySelectorAll('img[src*="ohif-logo"], img[alt*="OHIF" i]').forEach(logo => {
+      logo.src = customLogoUrl;
+      logo.alt = 'Logo personalizado';
+      logo.style.objectFit = 'contain';
+    });
+
+    document.querySelectorAll('svg').forEach(svg => {
+      const logoId = (svg.getAttribute('id') || '').toLowerCase();
+      if (!logoId.includes('ohif')) {
+        return;
+      }
+
+      const parent = svg.parentElement;
+      if (!parent || parent.dataset.customLogoReplaced === 'true') {
+        return;
+      }
+
+      const img = document.createElement('img');
+      img.src = customLogoUrl;
+      img.alt = 'Logo personalizado';
+      img.style.height = '32px';
+      img.style.width = 'auto';
+      parent.dataset.customLogoReplaced = 'true';
+      parent.replaceChild(img, svg);
+    });
+  };
+
+  const applyCustomizations = () => {
+    forceSpanish();
+    removeInvestigationalDialog();
+    removeLanguagePreference();
+    replaceLogos();
+  };
+
+  applyCustomizations();
+  new MutationObserver(applyCustomizations).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+})();
+</script>`;
+
+  return html.includes('</body>')
+    ? html.replace('</body>', `${clientScript}</body>`)
+    : `${html}${clientScript}`;
+}
 
 const PATIENT_USERS = (() => {
   const raw = process.env.PATIENT_USERS_JSON;
@@ -32,6 +128,7 @@ const PATIENT_USERS = (() => {
 })();
 
 app.use(express.urlencoded({ extended: false }));
+app.use('/branding', express.static(path.join(__dirname, 'public')));
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'cambia-esta-clave',
@@ -259,6 +356,15 @@ const createAuthProxy = ({ target, pathRewrite, errorMessage }) =>
     changeOrigin: true,
     ws: true,
     pathRewrite,
+    selfHandleResponse: true,
+    onProxyRes: responseInterceptor(async (responseBuffer, proxyRes, req, res) => {
+      const contentType = proxyRes.headers['content-type'] || '';
+      if (req.method === 'GET' && contentType.includes('text/html')) {
+        return injectViewerBranding(responseBuffer.toString('utf8'));
+      }
+
+      return responseBuffer;
+    }),
     onError: (_, res) => {
       res.status(502).send(errorMessage);
     },

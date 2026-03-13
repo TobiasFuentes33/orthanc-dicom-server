@@ -34,6 +34,7 @@ services:
       PATIENT_USERS_JSON: '[{"username":"paciente1","password":"paciente123","patientId":"P001"}]'
       OHIF_TARGET: "http://orthanc:8042/ohif"
       ORTHANC_TARGET: "http://orthanc:8042"
+      CUSTOM_LOGO_URL: "/branding/custom-logo.svg"
     ports:
       - "8042:3000" # Acceso protegido: http://IP:8042/ohif/
 

@@ -40,6 +40,7 @@ Además:
 
 - `OHIF_TARGET`: URL interna de OHIF (por defecto: `http://orthanc:8042/ohif`)
 - `ORTHANC_TARGET`: URL base interna de Orthanc para DICOMweb (por defecto: `http://orthanc:8042`)
+- `CUSTOM_LOGO_URL`: ruta pública del logo personalizado para reemplazar el logo de OHIF (por defecto: `/branding/custom-logo.svg`)
 
 ## Ejecutar local
 
@@ -47,3 +48,15 @@ Además:
 npm install
 npm start
 ```
+
+
+## Personalización UI aplicada
+
+El gateway ahora inyecta personalizaciones en el HTML de OHIF para:
+
+- ocultar el banner de *investigational use*.
+- forzar idioma español en sesión (`i18nextLng = es`).
+- ocultar el bloque de preferencia de idioma en la modal de preferencias.
+- reemplazar el logo de OHIF por uno personalizado.
+
+Por defecto se sirve un ejemplo en `doctor-auth-service/public/custom-logo.svg` y puedes reemplazarlo con tu archivo.
