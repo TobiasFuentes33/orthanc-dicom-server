@@ -12,7 +12,8 @@ Microservicio de autenticación para proteger el acceso a OHIF con dos roles:
 3. Con credenciales de **doctor**, el proxy permite todo el tráfico hacia OHIF + DICOMweb.
 4. Con credenciales de **paciente**, el proxy:
    - filtra `GET /dicom-web/studies` para devolver solo estudios con su `PatientID`.
-   - bloquea el acceso a `/dicom-web/studies/:StudyInstanceUID/...` si el estudio no pertenece al `PatientID` del paciente.
+   - permite `/dicom-web/studies/:StudyInstanceUID/...` solo si el estudio pertenece al `PatientID` del paciente.
+   - bloquea cualquier otro endpoint DICOMweb no asociado a su estudio (`fail-closed`).
 
 ## Variables de entorno
 
