@@ -1,6 +1,6 @@
 const express = require('express');
 const session = require('express-session');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware');
 
 const app = express();
 
@@ -30,6 +30,95 @@ const PATIENT_USERS = (() => {
     return [];
   }
 })();
+
+const LOGOUT_MENU_SCRIPT = String.raw`
+<script id="auth-logout-menu-script">
+(() => {
+  const BUTTON_ID = 'auth-logout-menu-item';
+
+  function createLogoutButton() {
+    const button = document.createElement('button');
+    button.id = BUTTON_ID;
+    button.type = 'button';
+    button.textContent = 'Cerrar sesión';
+    button.style.width = '100%';
+    button.style.textAlign = 'left';
+    button.style.padding = '8px 12px';
+    button.style.fontSize = '13px';
+    button.style.color = '#d92d20';
+    button.style.background = 'transparent';
+    button.style.border = '0';
+    button.style.cursor = 'pointer';
+    button.style.borderTop = '1px solid rgba(255, 255, 255, 0.12)';
+    button.setAttribute('role', 'menuitem');
+
+    button.addEventListener('mouseenter', () => {
+      button.style.background = 'rgba(255, 255, 255, 0.06)';
+    });
+
+    button.addEventListener('mouseleave', () => {
+      button.style.background = 'transparent';
+    });
+
+    button.addEventListener('click', () => {
+      window.location.assign('/logout');
+    });
+
+    return button;
+  }
+
+  function isSettingsMenu(menu) {
+    const text = (menu.textContent || '').toLowerCase();
+    return (
+      text.includes('preferences') ||
+      text.includes('preferencias') ||
+      text.includes('about') ||
+      text.includes('acerca')
+    );
+  }
+
+  function injectLogoutButton() {
+    const menus = document.querySelectorAll('[role="menu"], .settings-menu, .dropdown-menu');
+
+    menus.forEach(menu => {
+      if (!isSettingsMenu(menu)) {
+        return;
+      }
+
+      if (menu.querySelector('#' + BUTTON_ID)) {
+        return;
+      }
+
+      menu.appendChild(createLogoutButton());
+    });
+  }
+
+  const observer = new MutationObserver(() => {
+    injectLogoutButton();
+  });
+
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectLogoutButton, { once: true });
+  } else {
+    injectLogoutButton();
+  }
+})();
+</script>
+`;
+
+function injectLogoutScript(html) {
+  if (html.includes('auth-logout-menu-script')) {
+    return html;
+  }
+
+  if (html.includes('</body>')) {
+    return html.replace('</body>', `${LOGOUT_MENU_SCRIPT}</body>`);
+  }
+
+  return `${html}${LOGOUT_MENU_SCRIPT}`;
+}
 
 app.use(express.urlencoded({ extended: false }));
 app.use(
@@ -210,6 +299,12 @@ app.post('/logout', (req, res) => {
   });
 });
 
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.redirect('/login?message=Sesión%20cerrada');
+  });
+});
+
 app.get('/', (req, res) => {
   if (getSessionUser(req)) {
     return res.redirect('/ohif/');
@@ -218,12 +313,24 @@ app.get('/', (req, res) => {
   return res.redirect('/login');
 });
 
-const createAuthProxy = ({ target, pathRewrite, errorMessage }) =>
+const createAuthProxy = ({ target, pathRewrite, errorMessage, rewriteHtml = false }) =>
   createProxyMiddleware({
     target,
     changeOrigin: true,
     ws: true,
     pathRewrite,
+    selfHandleResponse: rewriteHtml,
+    onProxyRes: rewriteHtml
+      ? responseInterceptor(async (responseBuffer, proxyRes) => {
+          const contentType = proxyRes.headers['content-type'] || '';
+          if (!contentType.includes('text/html')) {
+            return responseBuffer;
+          }
+
+          const html = responseBuffer.toString('utf8');
+          return injectLogoutScript(html);
+        })
+      : undefined,
     onError: (_, res) => {
       res.status(502).send(errorMessage);
     },
@@ -237,6 +344,7 @@ app.use(
     pathRewrite: {
       '^/ohif': '',
     },
+    rewriteHtml: true,
     errorMessage: 'No fue posible conectar con OHIF. Verifica que esté levantado en OHIF_TARGET.',
   })
 );
