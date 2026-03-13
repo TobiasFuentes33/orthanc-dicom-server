@@ -111,6 +111,19 @@ function getPatientIdFromStudyMetadata(metadata) {
   return Array.isArray(patientTag) && patientTag.length > 0 ? String(patientTag[0]) : null;
 }
 
+function getPatientIdFromStudySummary(study) {
+  const dicomTagPatientId = study?.['00100020']?.Value;
+  if (Array.isArray(dicomTagPatientId) && dicomTagPatientId.length > 0) {
+    return String(dicomTagPatientId[0]);
+  }
+
+  if (study?.PatientID) {
+    return String(study.PatientID);
+  }
+
+  return null;
+}
+
 async function canPatientAccessStudy(patientId, studyInstanceUid) {
   const url = `${ORTHANC_TARGET}/dicom-web/studies/${encodeURIComponent(studyInstanceUid)}/metadata`;
   const upstreamResponse = await fetch(url);
@@ -139,17 +152,13 @@ async function proxyDicomWeb(req, res, options = {}) {
 
   if (options.filterStudiesByPatientId && req.method === 'GET') {
     const contentType = upstreamResponse.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
+    if (contentType.includes('application/json') || contentType.includes('application/dicom+json')) {
       const studies = await upstreamResponse.json();
       const filtered = Array.isArray(studies)
-        ? studies.filter((study) => {
-            const patientTag = study?.['00100020']?.Value;
-            return (
-              Array.isArray(patientTag) &&
-              patientTag.length > 0 &&
-              String(patientTag[0]) === String(options.filterStudiesByPatientId)
-            );
-          })
+        ? studies.filter(
+            (study) =>
+              getPatientIdFromStudySummary(study) === String(options.filterStudiesByPatientId)
+          )
         : [];
 
       return res.status(upstreamResponse.status).json(filtered);
