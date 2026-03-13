@@ -39,6 +39,7 @@ Además:
 
 - `OHIF_TARGET`: URL interna de OHIF (por defecto: `http://orthanc:8042/ohif`)
 - `ORTHANC_TARGET`: URL base interna de Orthanc para DICOMweb (por defecto: `http://orthanc:8042`)
+- `UPSTREAM_TIMEOUT_MS`: timeout máximo (en ms) para conexiones a OHIF/Orthanc (default: `15000`)
 
 ## Ejecutar local
 
