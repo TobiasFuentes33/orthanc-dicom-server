@@ -18,5 +18,22 @@ services:
     volumes:
       - orthanc-storage:/var/lib/orthanc/db
 
+  doctor-auth:
+    build:
+      context: ./doctor-auth-service
+    container_name: doctor-auth
+    restart: unless-stopped
+    depends_on:
+      - orthanc
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      SESSION_SECRET: "cambia-esta-clave-en-produccion"
+      DOCTOR_USER: "doctor"
+      DOCTOR_PASS: "doctor123"
+      # Cambia esta URL si OHIF corre en otra dirección/puerto.
+      OHIF_TARGET: "http://host.docker.internal:3001"
+
 volumes:
   orthanc-storage:
