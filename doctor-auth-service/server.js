@@ -7,6 +7,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const OHIF_TARGET = process.env.OHIF_TARGET || 'http://orthanc:8042/ohif';
 const ORTHANC_TARGET = process.env.ORTHANC_TARGET || 'http://orthanc:8042';
+const UPSTREAM_TIMEOUT_MS = Number(process.env.UPSTREAM_TIMEOUT_MS || 15000);
 const DOCTOR_USER = process.env.DOCTOR_USER || 'doctor';
 const DOCTOR_PASS = process.env.DOCTOR_PASS || 'doctor123';
 
@@ -215,13 +216,32 @@ function getPatientIdFromStudySummary(study) {
 
 async function canPatientAccessStudy(patientId, studyInstanceUid) {
   const url = `${ORTHANC_TARGET}/dicom-web/studies/${encodeURIComponent(studyInstanceUid)}/metadata`;
-  const upstreamResponse = await fetch(url);
+  const upstreamResponse = await fetchWithTimeout(url, {
+    method: 'GET',
+    headers: {
+      accept: 'application/dicom+json, application/json',
+    },
+  });
   if (!upstreamResponse.ok) {
     return false;
   }
 
   const metadata = await upstreamResponse.json();
   return getPatientIdFromStudyMetadata(metadata) === String(patientId);
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function proxyDicomWeb(req, res, options = {}) {
@@ -234,7 +254,7 @@ async function proxyDicomWeb(req, res, options = {}) {
     headers['content-type'] = req.headers['content-type'];
   }
 
-  const upstreamResponse = await fetch(upstreamUrl, {
+  const upstreamResponse = await fetchWithTimeout(upstreamUrl, {
     method: req.method,
     headers,
   });
@@ -329,6 +349,8 @@ const createAuthProxy = ({ target, pathRewrite, errorMessage, rewriteHtml = fals
     target,
     changeOrigin: true,
     ws: true,
+    proxyTimeout: UPSTREAM_TIMEOUT_MS,
+    timeout: UPSTREAM_TIMEOUT_MS,
     pathRewrite,
     selfHandleResponse: rewriteHtml,
     onProxyRes: rewriteHtml
@@ -394,5 +416,6 @@ app.listen(PORT, () => {
   console.log(`Auth Service escuchando en http://localhost:${PORT}`);
   console.log(`Proxy activo hacia OHIF: ${OHIF_TARGET}`);
   console.log(`Proxy activo hacia Orthanc: ${ORTHANC_TARGET}`);
+  console.log(`Timeout de upstream: ${UPSTREAM_TIMEOUT_MS} ms`);
   console.log(`Paciente por defecto: ${PATIENT_USERS.map((u) => `${u.username}:${u.patientId}`).join(', ')}`);
 });
