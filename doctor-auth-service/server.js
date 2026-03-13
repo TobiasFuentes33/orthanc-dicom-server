@@ -271,12 +271,23 @@ app.get('/login', (req, res) => {
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
 
+  const persistSessionAndRedirect = () => {
+    req.session.save((error) => {
+      if (error) {
+        console.error('No fue posible guardar la sesión de login:', error);
+        return res.status(500).send(renderLogin('No fue posible iniciar sesión. Inténtelo de nuevo.'));
+      }
+
+      return res.redirect('/ohif/');
+    });
+  };
+
   if (username === DOCTOR_USER && password === DOCTOR_PASS) {
     req.session.authenticated = true;
     req.session.username = username;
     req.session.role = 'doctor';
     req.session.patientId = null;
-    return res.redirect('/ohif/');
+    return persistSessionAndRedirect();
   }
 
   const patient = PATIENT_USERS.find(
@@ -287,7 +298,7 @@ app.post('/login', (req, res) => {
     req.session.username = patient.username;
     req.session.role = 'patient';
     req.session.patientId = String(patient.patientId);
-    return res.redirect('/ohif/');
+    return persistSessionAndRedirect();
   }
 
   return res.status(401).send(renderLogin('Credenciales inválidas.'));
