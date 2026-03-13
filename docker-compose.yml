@@ -6,7 +6,7 @@ services:
     container_name: orthanc
     restart: unless-stopped
     ports:
-      - "8042:8042" # HTTP API / Web UI
+      - "8043:8042" # HTTP API / Web UI directo (opcional, administración)
       - "4242:4242" # DICOM
     environment:
       VERBOSE_STARTUP: "true"
@@ -17,6 +17,25 @@ services:
       STONE_WEB_VIEWER_PLUGIN_ENABLED: "true"
     volumes:
       - orthanc-storage:/var/lib/orthanc/db
+
+  auth-gateway:
+    build:
+      context: ./doctor-auth-service
+    container_name: auth-gateway
+    restart: unless-stopped
+    depends_on:
+      - orthanc
+    environment:
+      PORT: "3000"
+      SESSION_SECRET: "cambia-esta-clave-en-produccion"
+      DOCTOR_USER: "doctor"
+      DOCTOR_PASS: "doctor123"
+      # Ajusta este JSON para tus pacientes reales
+      PATIENT_USERS_JSON: '[{"username":"paciente1","password":"paciente123","patientId":"P001"}]'
+      OHIF_TARGET: "http://orthanc:8042/ohif"
+      ORTHANC_TARGET: "http://orthanc:8042"
+    ports:
+      - "8042:3000" # Acceso protegido: http://IP:8042/ohif/
 
 volumes:
   orthanc-storage:
