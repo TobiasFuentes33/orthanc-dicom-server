@@ -81,6 +81,36 @@ const renderLogin = (message = '') => `<!doctype html>
   </body>
 </html>`;
 
+
+function renderViewerShell(user) {
+  const roleLabel = user.role === 'doctor' ? 'Doctor' : `Paciente (${user.patientId})`;
+  return `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OHIF seguro</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #0f172a; }
+      .topbar { height: 50px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; box-sizing: border-box; font-family: Arial, sans-serif; }
+      .meta { font-size: 13px; opacity: 0.9; }
+      .topbar button { border: none; border-radius: 999px; padding: 8px 12px; background: #ef4444; color: #fff; font-weight: 700; cursor: pointer; }
+      .topbar button:hover { background: #dc2626; }
+      iframe { border: 0; width: 100%; height: calc(100% - 50px); display: block; background: #000; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="meta">Usuario: ${user.username} · Rol: ${roleLabel}</div>
+      <form method="post" action="/logout">
+        <button type="submit">Cerrar sesión</button>
+      </form>
+    </div>
+    <iframe src="/ohif/" title="OHIF Viewer"></iframe>
+  </body>
+</html>`;
+}
+
 function getSessionUser(req) {
   if (req.session?.authenticated && req.session?.role) {
     return {
@@ -178,7 +208,7 @@ app.post('/login', (req, res) => {
     req.session.username = username;
     req.session.role = 'doctor';
     req.session.patientId = null;
-    return res.redirect('/ohif/');
+    return res.redirect('/viewer');
   }
 
   const patient = PATIENT_USERS.find(
@@ -189,7 +219,7 @@ app.post('/login', (req, res) => {
     req.session.username = patient.username;
     req.session.role = 'patient';
     req.session.patientId = String(patient.patientId);
-    return res.redirect('/ohif/');
+    return res.redirect('/viewer');
   }
 
   return res.status(401).send(renderLogin('Credenciales inválidas.'));
@@ -203,10 +233,15 @@ app.post('/logout', (req, res) => {
 
 app.get('/', (req, res) => {
   if (getSessionUser(req)) {
-    return res.redirect('/ohif/');
+    return res.redirect('/viewer');
   }
 
   return res.redirect('/login');
+});
+
+app.get('/viewer', requireAuth, (req, res) => {
+  const user = getSessionUser(req);
+  return res.status(200).send(renderViewerShell(user));
 });
 
 const createAuthProxy = ({ target, pathRewrite, errorMessage }) =>
