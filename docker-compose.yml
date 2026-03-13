@@ -32,8 +32,8 @@ services:
       SESSION_SECRET: "cambia-esta-clave-en-produccion"
       DOCTOR_USER: "doctor"
       DOCTOR_PASS: "doctor123"
-      # Cambia esta URL si OHIF corre en otra dirección/puerto.
-      OHIF_TARGET: "http://host.docker.internal:3001"
+      # OHIF del plugin de Orthanc expuesto por el servicio "orthanc".
+      OHIF_TARGET: "http://orthanc:8042/ohif"
 
 volumes:
   orthanc-storage:

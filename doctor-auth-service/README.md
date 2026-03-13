@@ -15,7 +15,7 @@ Microservicio de autenticación para proteger el acceso a OHIF.
 - `SESSION_SECRET`: secreto de sesión
 - `DOCTOR_USER`: usuario permitido
 - `DOCTOR_PASS`: contraseña permitida
-- `OHIF_TARGET`: URL interna de OHIF (ejemplo: `http://host.docker.internal:3001`)
+- `OHIF_TARGET`: URL interna de OHIF (por defecto: `http://orthanc:8042/ohif` en Docker Compose)
 
 ## Ejecutar local
 
@@ -23,4 +23,3 @@ Microservicio de autenticación para proteger el acceso a OHIF.
 npm install
 npm start
 ```
-
