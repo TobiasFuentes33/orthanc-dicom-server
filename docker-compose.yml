@@ -34,6 +34,7 @@ services:
       DOCTOR_PASS: "doctor123"
       # OHIF del plugin de Orthanc expuesto por el servicio "orthanc".
       OHIF_TARGET: "http://orthanc:8042/ohif"
+      ORTHANC_TARGET: "http://orthanc:8042"
 
 volumes:
   orthanc-storage:
