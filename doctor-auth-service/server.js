@@ -375,7 +375,7 @@ app.use(
   createAuthProxy({
     target: OHIF_TARGET,
     pathRewrite: {
-      '^/ohif': '',
+      '^/ohif': '/ohif',
     },
     rewriteHtml: true,
     errorMessage: 'No fue posible conectar con OHIF. Verifica que esté levantado en OHIF_TARGET.',
