@@ -7,7 +7,7 @@ Microservicio de autenticación para proteger el acceso a OHIF.
 1. El doctor entra a `http://localhost:3000`.
 2. Si no está autenticado, se muestra el panel de login.
 3. Si intenta entrar a `/ohif` sin sesión, recibe el mensaje **"Necesita autenticarse"** y se le redirige al login.
-4. Con credenciales válidas, el servicio hace proxy hacia OHIF (`OHIF_TARGET`).
+4. Con credenciales válidas, el servicio hace proxy hacia OHIF (`OHIF_TARGET`) y DICOMweb (`ORTHANC_TARGET`).
 
 ## Variables de entorno
 
@@ -16,6 +16,7 @@ Microservicio de autenticación para proteger el acceso a OHIF.
 - `DOCTOR_USER`: usuario permitido
 - `DOCTOR_PASS`: contraseña permitida
 - `OHIF_TARGET`: URL interna de OHIF (por defecto: `http://orthanc:8042/ohif` en Docker Compose)
+- `ORTHANC_TARGET`: URL base interna de Orthanc para rutas DICOMweb (por defecto: `http://orthanc:8042`)
 
 ## Ejecutar local
 

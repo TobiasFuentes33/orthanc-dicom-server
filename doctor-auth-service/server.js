@@ -6,6 +6,7 @@ const app = express();
 
 const PORT = Number(process.env.PORT || 3000);
 const OHIF_TARGET = process.env.OHIF_TARGET || 'http://orthanc:8042/ohif';
+const ORTHANC_TARGET = process.env.ORTHANC_TARGET || 'http://orthanc:8042';
 const DOCTOR_USER = process.env.DOCTOR_USER || 'doctor';
 const DOCTOR_PASS = process.env.DOCTOR_PASS || 'doctor123';
 
@@ -96,25 +97,41 @@ app.get('/', (req, res) => {
   return res.redirect('/login');
 });
 
+const createDoctorProxy = ({ target, pathRewrite, errorMessage }) =>
+  createProxyMiddleware({
+    target,
+    changeOrigin: true,
+    ws: true,
+    pathRewrite,
+    onError: (_, res) => {
+      res.status(502).send(errorMessage);
+    },
+  });
+
 app.use(
   '/ohif',
   requireDoctorAuth,
-  createProxyMiddleware({
+  createDoctorProxy({
     target: OHIF_TARGET,
-    changeOrigin: true,
-    ws: true,
     pathRewrite: {
       '^/ohif': '',
     },
-    onError: (_, res) => {
-      res.status(502).send(
-        'No fue posible conectar con OHIF. Verifica que esté levantado en OHIF_TARGET.'
-      );
-    },
+    errorMessage: 'No fue posible conectar con OHIF. Verifica que esté levantado en OHIF_TARGET.',
+  })
+);
+
+app.use(
+  '/dicom-web',
+  requireDoctorAuth,
+  createDoctorProxy({
+    target: ORTHANC_TARGET,
+    errorMessage:
+      'No fue posible conectar con Orthanc DICOMweb. Verifica que ORTHANC_TARGET esté levantado.',
   })
 );
 
 app.listen(PORT, () => {
   console.log(`Doctor Auth Service escuchando en http://localhost:${PORT}`);
   console.log(`Proxy activo hacia OHIF: ${OHIF_TARGET}`);
+  console.log(`Proxy activo hacia Orthanc: ${ORTHANC_TARGET}`);
 });
