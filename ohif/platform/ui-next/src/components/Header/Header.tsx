@@ -29,6 +29,7 @@ interface HeaderProps {
     createLogoComponentFn?: (React: any, props: any) => ReactNode;
   };
   PatientInfo?: ReactNode;
+  UserInfo?: ReactNode;
   Secondary?: ReactNode;
   UndoRedo?: ReactNode;
 }
@@ -41,6 +42,7 @@ function Header({
   isSticky = false,
   WhiteLabeling,
   PatientInfo,
+  UserInfo,
   UndoRedo,
   Secondary,
   ...props
@@ -84,6 +86,8 @@ function Header({
             {UndoRedo}
             <div className="border-muted mx-1.5 h-[25px] border-r"></div>
             {PatientInfo}
+            {UserInfo ? <div className="border-muted mx-1.5 h-[25px] border-r"></div> : null}
+            {UserInfo}
             <div className="border-muted mx-1.5 h-[25px] border-r"></div>
             <div className="flex-shrink-0">
               <DropdownMenu>

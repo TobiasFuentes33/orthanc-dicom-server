@@ -209,6 +209,15 @@ app.get('/', (req, res) => {
   return res.redirect('/login');
 });
 
+app.get('/api/session-user', requireAuth, (req, res) => {
+  const user = getSessionUser(req);
+
+  return res.status(200).json({
+    authenticated: true,
+    user,
+  });
+});
+
 const createAuthProxy = ({ target, pathRewrite, errorMessage }) =>
   createProxyMiddleware({
     target,
