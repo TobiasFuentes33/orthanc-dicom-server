@@ -1,6 +1,6 @@
 const express = require('express');
 const session = require('express-session');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const { createProxyMiddleware, responseInterceptor } = require('http-proxy-middleware');
 
 const app = express();
 
@@ -91,6 +91,90 @@ function getSessionUser(req) {
   }
 
   return null;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildOhifUserBarMarkup(user) {
+  if (!user) {
+    return '';
+  }
+
+  const roleLabel = user.role === 'doctor' ? 'Doctor' : 'Paciente';
+  const patientInfo = user.patientId ? `<span class="ohif-session-pill">PatientID: ${escapeHtml(user.patientId)}</span>` : '';
+
+  return `
+    <style>
+      body { margin-top: 48px; }
+      #ohif-session-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 48px;
+        padding: 8px 16px;
+        box-sizing: border-box;
+        background: #111827;
+        color: #f9fafb;
+        font-family: Arial, sans-serif;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+      }
+      .ohif-session-meta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .ohif-session-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 12px;
+      }
+      .ohif-session-user {
+        font-weight: 700;
+      }
+      .ohif-session-logout {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        color: #111827;
+        background: #f9fafb;
+        font-weight: 700;
+      }
+      .ohif-session-logout:hover {
+        background: #e5e7eb;
+      }
+    </style>
+    <div id="ohif-session-bar">
+      <div class="ohif-session-meta">
+        <span class="ohif-session-pill">${escapeHtml(roleLabel)}</span>
+        <span>Usuario conectado: <span class="ohif-session-user">${escapeHtml(user.username)}</span></span>
+        ${patientInfo}
+      </div>
+      <form method="post" action="/logout" style="margin: 0;">
+        <button type="submit" class="ohif-session-logout">Cerrar sesión</button>
+      </form>
+    </div>
+  `;
 }
 
 function requireAuth(req, res, next) {
@@ -223,7 +307,23 @@ const createAuthProxy = ({ target, pathRewrite, errorMessage }) =>
     target,
     changeOrigin: true,
     ws: true,
+    selfHandleResponse: true,
     pathRewrite,
+    onProxyRes: responseInterceptor(async (responseBuffer, proxyRes, req) => {
+      const contentType = proxyRes.headers['content-type'] || '';
+
+      if (!contentType.includes('text/html')) {
+        return responseBuffer;
+      }
+
+      const html = responseBuffer.toString('utf8');
+      const userBarMarkup = buildOhifUserBarMarkup(getSessionUser(req));
+      if (!userBarMarkup || html.includes('id="ohif-session-bar"')) {
+        return html;
+      }
+
+      return html.replace('</body>', `${userBarMarkup}</body>`);
+    }),
     onError: (_, res) => {
       res.status(502).send(errorMessage);
     },
